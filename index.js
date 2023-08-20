@@ -237,10 +237,10 @@ app.patch("/api/bookmarks", async (req, res) => {
 });
 //edit likes
 app.patch("/api/likes", async (req, res) => {
-  const { id } = req.body;
+  const { id , likes} = req.body;
   try {
     const updated = await Slides.findById(id);
-    updated.likes = parseInt(updated.likes) + 1;
+    updated.likes = likes;
     // console.log(upvote,updated.upvotes)
     const updatedProduct = await updated.save();
     return res.json({
