@@ -7,7 +7,8 @@ const Slide_schema = new Schema({
     categories:String,
     story_id :String,
     bookmarks:Boolean,
-    likes :Number
+    likes :Number,
+    isLiked:Boolean
 })
 const Slides = mongoose.model('slide' , Slide_schema)
 module.exports = Slides

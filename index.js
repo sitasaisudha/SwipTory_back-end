@@ -11,6 +11,8 @@ const app = express();
 const Users = require("./models/Users");
 const Stories = require("./models/Stories");
 const Slides = require("./models/Slides");
+const BookmarkedSlides = require("./models/BookmarkedSlide");
+
 dotenv.config();
 app.use(cors());
 app.use(express.static("./public"));
@@ -32,6 +34,9 @@ const isAuthenticated = (req, res, next) => {
 };
 
 // get requests
+app.get('/' , (req,res)=>{
+  res.send('dont worry ')
+})
 app.get("/health-api", (req, res) => {
   res.json({ messahe: "all ok no worries!" });
 });
@@ -69,15 +74,14 @@ app.get(`/api/slides/`, async (req, res) => {
   }
 });
 
-// bookmarked slides
-app.get("/api/bookmarks", async (req, res) => {
-  try {
-    let Slide = await Slides.find({ bookmarks: true })
-      .where("bookmarks")
-      .in(true);
-    res.json(Slide);
-  } catch (error) {
-    res.json(error);
+//get bookmarked slides of a user
+app.get("/api/bookmarksSlides", async (req, res) => {
+  const {userId} = req.query;
+  try { 
+    const slidess = await BookmarkedSlides.find({userId});
+    res.send(slidess)
+  }catch(err){
+    res.json(err)
   }
 });
 
@@ -116,6 +120,26 @@ app.get("/api/yourStories", async(req,res)=>{
     res.json(error);
   }
 
+})
+
+// get user id 
+app.get('/api/user_id', async(req,res)=>{
+  try{
+   
+    const {user_nm} = req.query;
+    // res.send(user_nm )
+    // console.log(typeof(user_nm))
+   
+    const user = await Users.findOne({ user_nm });
+    res.send(user._id);
+    // const user_id = await Users.find({username:user});
+    // res.json(user_id);
+   
+  
+
+  }catch(error){
+    res.json({'error':error})
+  }   
 })
 
 // post requests
@@ -195,6 +219,7 @@ app.post("/api/addSlide", (req, res) => {
   const { heading, description, image_url, categories, story_id } = req.body;
   const likes = 0;
   const bookmarks = false;
+  const isLiked = fasle;
   Slides.create({
     heading,
     description,
@@ -203,6 +228,7 @@ app.post("/api/addSlide", (req, res) => {
     story_id,
     bookmarks,
     likes,
+   
   })
     .then((data) => {
       console.log(data.story_id);
@@ -213,28 +239,29 @@ app.post("/api/addSlide", (req, res) => {
     });
 });
 
-//patch requests
+// adding bookmarks
 
-// to add book-marks
-app.patch("/api/bookmarks", async (req, res) => {
-  const { id, bookmarks } = req.body;
+app.post('/api/bookmarks', async (req, res) => {
+  const { userId, slideId } = req.body;
 
   try {
-    const updated = await Slides.findById(id);
-    updated.bookmarks = bookmarks;
-    // console.log(upvote,updated.upvotes)
-    const updatedProduct = await updated.save();
-    return res.json({
-      bookmarks: updatedProduct.bookmarks,
-      message: "success",
-      name: updatedProduct.heading,
-    });
-  } catch (err) {
-    res.json({
-      error: err,
-    });
+    const existingBookmark = await BookmarkedSlides.findOne({ userId, slideId });
+    console.log(existingBookmark)
+   
+    if (existingBookmark) {
+    
+      await BookmarkedSlides.deleteOne({ userId, slideId }); // Unbookmark slide
+      res.json({ success: true, message: 'Slide unbookmarked' });
+    } else {
+      const bookmark = new BookmarkedSlides({ userId, slideId });
+      await bookmark.save(); // Bookmark slide
+      // res.json(await BookmarkedSlides.find());
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
 //edit likes
 app.patch("/api/likes", async (req, res) => {
   const { id , likes} = req.body;
