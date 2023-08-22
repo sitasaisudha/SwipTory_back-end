@@ -75,15 +75,30 @@ app.get(`/api/slides/`, async (req, res) => {
 });
 
 //get bookmarked slides of a user
-app.get("/api/bookmarksSlides", async (req, res) => {
+app.get("/api/bookmarksSlides", isAuthenticated, async (req, res) => {
   const {userId} = req.query;
+  // res.send(userId)
+  console.log(userId)
   try { 
     const slidess = await BookmarkedSlides.find({userId});
-    res.send(slidess)
+    const slide_list = await slidess.flatMap((slides) => slides.slideId);
+    res.send(slide_list)
   }catch(err){
     res.json(err)
   }
 });
+
+//to get just slide info
+app.get('/api/slideinfo', async(req,res)=>{
+  const {id} = req.query;
+  // console.log(id)
+  try{
+    const slidedata = await Slides.findById(id);
+    res.send(slidedata)
+  }catch(err){
+    res.send(err)
+  }
+})
 
 // to get slide info to edit it
 app.get("/api/slide", async (req, res) => {
@@ -103,7 +118,7 @@ app.get("/api/slide", async (req, res) => {
 });
 
 // get your stories
-app.get("/api/yourStories", async(req,res)=>{
+app.get("/api/yourStories", isAuthenticated, async(req,res)=>{
  
   try {
     const user_names = req.query.name;
@@ -126,12 +141,13 @@ app.get("/api/yourStories", async(req,res)=>{
 app.get('/api/user_id', async(req,res)=>{
   try{
    
-    const {user_nm} = req.query;
-    // res.send(user_nm )
+    const user_nm = req.query.name;
+   console.log(user_nm)
     // console.log(typeof(user_nm))
    
-    const user = await Users.findOne({ user_nm });
-    res.send(user._id);
+    const user = await Users.findOne({ username: user_nm });
+   console.log('userid :', user.id) 
+    res.send(user.id);
     // const user_id = await Users.find({username:user});
     // res.json(user_id);
    
@@ -202,7 +218,7 @@ app.post("/api/login", (req, res) => {
 
 // add story request
 
-app.post("/api/addStory", async (req, res) => {
+app.post("/api/addStory",isAuthenticated,   async (req, res) => {
   const {user_name} = req.body;
   try {
     const story = await Stories.create({user_name});
@@ -215,11 +231,10 @@ app.post("/api/addStory", async (req, res) => {
 
 //adding slide to database
 
-app.post("/api/addSlide", (req, res) => {
+app.post("/api/addSlide",isAuthenticated,  (req, res) => {
   const { heading, description, image_url, categories, story_id } = req.body;
   const likes = 0;
   const bookmarks = false;
-  const isLiked = fasle;
   Slides.create({
     heading,
     description,
@@ -243,10 +258,11 @@ app.post("/api/addSlide", (req, res) => {
 
 app.post('/api/bookmarks', async (req, res) => {
   const { userId, slideId } = req.body;
-
+ 
   try {
+   
     const existingBookmark = await BookmarkedSlides.findOne({ userId, slideId });
-    console.log(existingBookmark)
+    // console.log(existingBookmark)
    
     if (existingBookmark) {
     
@@ -255,7 +271,7 @@ app.post('/api/bookmarks', async (req, res) => {
     } else {
       const bookmark = new BookmarkedSlides({ userId, slideId });
       await bookmark.save(); // Bookmark slide
-      // res.json(await BookmarkedSlides.find());
+      res.json({ success: true, message: 'Slide bookmarked' });
     }
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -263,22 +279,33 @@ app.post('/api/bookmarks', async (req, res) => {
 });
 
 //edit likes
-app.patch("/api/likes", async (req, res) => {
-  const { id , likes} = req.body;
+app.post('/api/likes', async (req, res) => {
+  const { userId, slideId, liked } = req.body;
+console.log(userId, slideId, liked)
   try {
-    const updated = await Slides.findById(id);
-    updated.likes = likes;
-    // console.log(upvote,updated.upvotes)
-    const updatedProduct = await updated.save();
-    return res.json({
-      likes: updatedProduct.likes,
-      message: "success",
-      name: updatedProduct.heading,
-    });
+    // Find the slide by its ID
+    const slide = await Slides.findById(slideId);
+
+    if (!slide) {
+      return res.status(404).json({ error: 'Slide not found' });
+    }
+
+    // Update the likes based on the liked status
+    if (liked) {
+      slide.likes += 1;
+    } else {
+      slide.likes -= 1;
+    }
+
+    // Save the updated slide to the database
+    await slide.save();
+    return res.json({ success: true });
   } catch (error) {
-    res.json("error");
+    console.error(error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // edit products
 app.patch("/api/edit-products", async (req, res) => {
