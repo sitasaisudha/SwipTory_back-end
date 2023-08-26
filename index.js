@@ -91,7 +91,7 @@ app.get("/api/bookmarksSlides", isAuthenticated, async (req, res) => {
 //to get just slide info
 app.get('/api/slideinfo', async(req,res)=>{
   const {id} = req.query;
-  // console.log(id)
+  
   try{
     const slidedata = await Slides.findById(id);
     res.send(slidedata)
@@ -119,10 +119,9 @@ app.get("/api/slide", async (req, res) => {
 
 // get your stories
 app.get("/api/yourStories", isAuthenticated, async(req,res)=>{
- 
   try {
     const user_names = req.query.name;
-    console.log(user_names)
+   
     let search = req.query.search || "";
 
     const story = await Stories.find({
@@ -130,6 +129,7 @@ app.get("/api/yourStories", isAuthenticated, async(req,res)=>{
     })
       .where("user_name")
       .in(user_names);
+  
     res.json(story);
   } catch (error) {
     res.json(error);
@@ -143,20 +143,48 @@ app.get('/api/user_id', async(req,res)=>{
    
     const user_nm = req.query.name;
    console.log(user_nm)
-    // console.log(typeof(user_nm))
+   
    
     const user = await Users.findOne({ username: user_nm });
    console.log('userid :', user.id) 
     res.send(user.id);
-    // const user_id = await Users.find({username:user});
-    // res.json(user_id);
    
-  
-
   }catch(error){
     res.json({'error':error})
   }   
 })
+
+// shared-slides
+app.get('/api/shared-story-slides', async (req, res) => {
+  try {
+    const storyId = req.query.storyId;
+    const sharedSlides = await Slides.find({ story_id: storyId });
+    res.json({ slides: sharedSlides });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+app.post('/api/create-shared-story', async (req, res) => {
+  try {
+    const { slides } = req.body;
+
+    // Create a new story document to represent the shared story
+    const newStory = new Story({
+      slides: slides,
+      // You can add more fields here if needed
+    });
+
+    // Save the new story to the database
+    const savedStory = await newStory.save();
+
+    res.status(201).json({ success: true, sharedStoryId: savedStory._id });
+  } catch (error) {
+    console.error('Error creating shared story:', error);
+    res.status(500).json({ success: false, message: 'An error occurred while creating the shared story.' });
+  }
+});
 
 // post requests
 
